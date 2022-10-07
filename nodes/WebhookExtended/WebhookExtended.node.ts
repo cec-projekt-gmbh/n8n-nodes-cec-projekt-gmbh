@@ -207,7 +207,7 @@ export class WebhookExtended implements INodeType {
 						description: 'Response defined in that node',
 					},
 				],
-				default: 'onReceived',
+				default: 'responseNode',
 				description: 'When and how to respond to the webhook',
 			},
 			{
