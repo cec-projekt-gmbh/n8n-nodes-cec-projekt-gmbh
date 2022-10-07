@@ -523,7 +523,9 @@ export class WebhookExtended implements INodeType {
 			try {
 				initializeApp(firebaseConfig);
 			} catch (e) {
-				return authorizationError(resp, realm, 500, e.message);
+				if (e.code !== 'app/duplicate-app') {
+					return authorizationError(resp, realm, 500, e.message);
+				}
 			}
 
 			// Verify ID Token and get user info
