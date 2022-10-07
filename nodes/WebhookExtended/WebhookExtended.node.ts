@@ -129,8 +129,20 @@ export class WebhookExtended implements INodeType {
 						value: 'none',
 					},
 				],
-				default: 'none',
+				default: 'googleFirebaseAuth',
 				description: 'The way to authenticate',
+			},
+			{
+				displayName:
+					'Make sure that the environment variable \'<b>GOOGLE_APPLICATION_CREDENTIALS</b>\' is set and points to a valid file. <a href="https://firebase.google.com/docs/admin/setup" target="_blank">Google Docs</a>',
+				name: 'googleFirebaseAuthNotice',
+				type: 'notice',
+				displayOptions: {
+					show: {
+						authentication: ['googleFirebaseAuth'],
+					},
+				},
+				default: '',
 			},
 			{
 				displayName: 'HTTP Method',
