@@ -436,6 +436,33 @@ export class WebhookExtended implements INodeType {
 						default: 'data',
 						description: 'Name of the property to return the data of instead of the whole JSON',
 					},
+					{
+						displayName: 'Permissions',
+						name: 'permissions',
+						type: 'string',
+						default: '',
+						description: 'A comma-separated list of permissions (strings). <b>They are not evaluated by the node!</b> They are only used for documentation purposes.',
+					},
+					// {
+					// 	displayName: 'JSON yup schema (query)',
+					// 	name: 'jsonYupSchemaQuery',
+					// 	type: 'json',
+					// 	typeOptions: {
+					// 		alwaysOpenEditWindow: true,
+					// 	},
+					// 	default: '',
+					// 	description: 'A JSON string of a json-yup-schema. <b>They are not evaluated by the node!</b> They are only used for documentation purposes. <a href="https://github.com/ritchieanesco/json-schema-yup-transform">Docs</a>',
+					// },
+					// {
+					// 	displayName: 'JSON yup schema (body)',
+					// 	name: 'jsonYupSchemaBody',
+					// 	type: 'json',
+					// 	typeOptions: {
+					// 		alwaysOpenEditWindow: true,
+					// 	},
+					// 	default: '',
+					// 	description: 'A JSON string of a json-yup-schema. <b>They are not evaluated by the node!</b> They are only used for documentation purposes. <a href="https://github.com/ritchieanesco/json-schema-yup-transform">Docs</a>',
+					// },
 				],
 			},
 		],
@@ -513,11 +540,6 @@ export class WebhookExtended implements INodeType {
 				return authorizationError(resp, realm, 401);
 			}
 
-			const idToken = auth.replace('Bearer ', '');
-			if (!idToken) {
-				return authorizationError(resp, realm, 401);
-			}
-
 			// Init Firebase
 			const firebaseConfig = {credential: applicationDefault()};
 			try {
@@ -531,6 +553,7 @@ export class WebhookExtended implements INodeType {
 			// Verify ID Token and get user info
 			try {
 				const {getAuth} = require('firebase-admin/auth');
+				const idToken = auth.replace('Bearer ', '');
 				user = await getAuth().verifyIdToken(idToken);
 			} catch (e) {
 				return authorizationError(resp, realm, 500, e.message);
@@ -552,6 +575,7 @@ export class WebhookExtended implements INodeType {
 							params: this.getParamsData(),
 							query: this.getQueryData(),
 							body: data,
+							user,
 						},
 					};
 
@@ -616,6 +640,7 @@ export class WebhookExtended implements INodeType {
 							params: this.getParamsData(),
 							query: this.getQueryData(),
 							body: this.getBodyData(),
+							user,
 						},
 					};
 
