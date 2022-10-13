@@ -22,9 +22,16 @@ import formidable from 'formidable';
 
 import isbot from 'isbot';
 
+import Ajv from 'ajv';
+
+import addFormats from 'ajv-formats';
+
 import {applicationDefault, initializeApp} from 'firebase-admin/app';
 
 import {getAuth} from 'firebase-admin/auth';
+
+const ajv = new Ajv({allErrors: true});
+addFormats(ajv);
 
 function authorizationError(resp: Response, realm: string, responseCode: number, message?: string) {
 	if (message === undefined) {
@@ -41,6 +48,45 @@ function authorizationError(resp: Response, realm: string, responseCode: number,
 	return {
 		noWebhookResponse: true,
 	};
+}
+
+function validationError(resp: Response, realm: string, message: object) {
+	resp.writeHead(403, {'WWW-Authenticate': `Basic realm="${realm}"`, 'Content-Type': 'application/json'});
+	resp.end(JSON.stringify(message));
+	return {
+		noWebhookResponse: true,
+	};
+}
+
+function ajvValidateInput(resp: Response, realm: string, schema: object, data: object) {
+	try {
+		const validate = ajv.compile(schema);
+		const valid = validate(data);
+
+		if (!valid) {
+			return {
+				validationResult: false,
+				errors: validate.errors,
+			};
+		}
+
+		return {
+			validationResult: true,
+			data,
+		};
+	} catch (e) {
+		console.log(e.message);
+		resp.writeHead(500, {'WWW-Authenticate': `Basic realm="${realm}"`});
+		const email = process.env.EMAIL_ADMINISTRATION;
+		let message = `A problem with the schema definition has occurred. Please inform the website administration.`;
+		if (!!email) {
+			message += ` E-Mail: ${email}`;
+		}
+		resp.end(message);
+		return {
+			noWebhookResponse: true,
+		};
+	}
 }
 
 export class WebhookExtended implements INodeType {
@@ -296,6 +342,26 @@ export class WebhookExtended implements INodeType {
 				default: {},
 				options: [
 					{
+						displayName: 'JSON Schema: query',
+						name: 'jsonSchemaQuery',
+						type: 'json',
+						typeOptions: {
+							alwaysOpenEditWindow: true,
+						},
+						default: '',
+						description: 'A JSON Schema. <b>Keys require quotes</b>. <a href="https://ajv.js.org/json-schema.html">Docs</a>',
+					},
+					{
+						displayName: 'JSON Schema: body',
+						name: 'jsonSchemaBody',
+						type: 'json',
+						typeOptions: {
+							alwaysOpenEditWindow: true,
+						},
+						default: '',
+						description: 'A JSON Schema. <b>Keys require quotes</b>. <a href="https://ajv.js.org/json-schema.html">Docs</a>',
+					},
+					{
 						displayName: 'Binary Data',
 						name: 'binaryData',
 						type: 'boolean',
@@ -443,26 +509,6 @@ export class WebhookExtended implements INodeType {
 						default: '',
 						description: 'A comma-separated list of permissions (strings). <b>They are not evaluated by the node!</b> They are only used for documentation purposes.',
 					},
-					// {
-					// 	displayName: 'JSON yup schema (query)',
-					// 	name: 'jsonYupSchemaQuery',
-					// 	type: 'json',
-					// 	typeOptions: {
-					// 		alwaysOpenEditWindow: true,
-					// 	},
-					// 	default: '',
-					// 	description: 'A JSON string of a json-yup-schema. <b>They are not evaluated by the node!</b> They are only used for documentation purposes. <a href="https://github.com/ritchieanesco/json-schema-yup-transform">Docs</a>',
-					// },
-					// {
-					// 	displayName: 'JSON yup schema (body)',
-					// 	name: 'jsonYupSchemaBody',
-					// 	type: 'json',
-					// 	typeOptions: {
-					// 		alwaysOpenEditWindow: true,
-					// 	},
-					// 	default: '',
-					// 	description: 'A JSON string of a json-yup-schema. <b>They are not evaluated by the node!</b> They are only used for documentation purposes. <a href="https://github.com/ritchieanesco/json-schema-yup-transform">Docs</a>',
-					// },
 				],
 			},
 		],
@@ -473,9 +519,13 @@ export class WebhookExtended implements INodeType {
 		const options = this.getNodeParameter('options', {}) as IDataObject;
 		const req = this.getRequestObject();
 		const resp = this.getResponseObject();
-		const headers = this.getHeaderData();
 		const realm = 'Webhook';
+		const headers = this.getHeaderData();
+		const params = this.getParamsData();
+		const query = this.getQueryData();
+		const body = this.getBodyData();
 		let user = {}; // Für Google Auth;
+		const httpMethod = this.getNodeParameter('httpMethod');
 
 		const ignoreBots = options.ignoreBots as boolean;
 		if (ignoreBots && isbot((headers as IDataObject)['user-agent'] as string)) {
@@ -537,10 +587,10 @@ export class WebhookExtended implements INodeType {
 			// @ts-ignore
 			const auth = headers['authorization'];
 			if (!auth) {
-				return authorizationError(resp, realm, 401);
+				return authorizationError(resp, realm, 401, `Header 'Authorization' is required!`);
 			}
 
-			// Init Firebase
+			// Init Firebase once
 			const firebaseConfig = {credential: applicationDefault()};
 			try {
 				initializeApp(firebaseConfig);
@@ -560,6 +610,27 @@ export class WebhookExtended implements INodeType {
 			}
 		}
 
+		const schemas = [];
+		if (options.jsonSchemaQuery) schemas.push({schema: options.jsonSchemaQuery, data: query});
+		if (options.jsonSchemaBody) schemas.push({schema: options.jsonSchemaBody, data: body});
+		if (schemas.length > 0) {
+			for (let i = 0; i < schemas.length; i++) {
+				// @ts-ignore
+				const schema = JSON.parse(schemas[i].schema);
+				const result = ajvValidateInput(resp, realm, schema, schemas[i].data);
+
+				if (!!result?.noWebhookResponse) return result;
+
+				if (!result.validationResult) {
+					const message = {
+						status: 400,
+						message: result.errors,
+					};
+					return validationError(resp, realm, message);
+				}
+			}
+		}
+
 		// @ts-ignore
 		const mimeType = headers['content-type'] || 'application/json';
 		if (mimeType.includes('multipart/form-data')) {
@@ -572,8 +643,8 @@ export class WebhookExtended implements INodeType {
 						binary: {},
 						json: {
 							headers,
-							params: this.getParamsData(),
-							query: this.getQueryData(),
+							params,
+							query,
 							body: data,
 							user,
 						},
@@ -636,10 +707,11 @@ export class WebhookExtended implements INodeType {
 					const returnItem: INodeExecutionData = {
 						binary: {},
 						json: {
+							httpMethod,
 							headers,
-							params: this.getParamsData(),
-							query: this.getQueryData(),
-							body: this.getBodyData(),
+							params,
+							query,
+							body,
 							user,
 						},
 					};
@@ -661,10 +733,11 @@ export class WebhookExtended implements INodeType {
 
 		const response: INodeExecutionData = {
 			json: {
+				httpMethod,
 				headers,
-				params: this.getParamsData(),
-				query: this.getQueryData(),
-				body: this.getBodyData(),
+				params,
+				query,
+				body,
 				user,
 			},
 		};

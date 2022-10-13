@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-cec-projekt-gmbh",
-  "version": "0.1.3",
+  "version": "1.0.0",
   "description": "",
   "keywords": [
     "n8n-community-node-package",
@@ -14,7 +14,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/cec-projekt-gmbh/n8n-nodes-cec.git"
+    "url": "https://github.com/cec-projekt-gmbh/n8n-nodes-cec-projekt-gmbh.git"
   },
   "main": "index.js",
   "scripts": {
@@ -50,6 +50,8 @@
     "typescript": "~4.6.0"
   },
   "dependencies": {
+    "ajv": "^8.11.0",
+    "ajv-formats": "^2.1.1",
     "basic-auth": "^2.0.1",
     "firebase-admin": "^11.1.0",
     "formidable": "^2.0.1",

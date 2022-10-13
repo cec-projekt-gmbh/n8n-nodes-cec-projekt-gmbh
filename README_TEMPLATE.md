@@ -1,3 +1,6 @@
+Neue Umgebungsvariable: EMAIL_ADMINISTRATION
+
+
 # n8n-nodes-_node-name_
 
 This is an n8n community node. It lets you use _app/service name_ in your n8n workflows.
