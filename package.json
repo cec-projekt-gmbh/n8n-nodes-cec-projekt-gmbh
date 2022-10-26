@@ -1,13 +1,13 @@
 {
   "name": "n8n-nodes-cec-projekt-gmbh",
   "version": "1.0.0",
-  "description": "",
+  "description": "Extensions and custom nodes for n8n",
   "keywords": [
     "n8n-community-node-package",
     "cec-projekt-gmbh"
   ],
-  "license": "",
-  "homepage": "",
+  "license": "MIT",
+  "homepage": "https://cec-projekt.de",
   "author": {
     "name": "Alexander Hentzsch@CEC Projekt GmbH",
     "email": "hentzsch@cec-projekt.de"
@@ -34,7 +34,7 @@
     "nodes": [
       "dist/nodes/WebhookExtended/WebhookExtended.node.js",
       "dist/nodes/ExecuteWorkflow/ExecuteWorkflow.node.js",
-	  "dist/nodes/Middleware/Middleware.node.js"
+	  "dist/nodes/ExecuteWorkflowExtended/ExecuteWorkflowExtended.node.js"
     ]
   },
   "devDependencies": {
