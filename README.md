@@ -4,23 +4,24 @@ This is a collection of n8n-base-nodes extensions.
 
 [n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
-[Installation](#installation)  
-Nodes
-[Webhook](#Webhook-Extended)
-[Middleware](#Middleware)
-[Resources](#resources)
-[Version History](#Version-history)
+- [Installation](#installation)
+- Extensions
+  - [Webhook](#webhook-extended)
+  - [Execute Workflow](#execute-workflow-extended)
+- [Resources](#resources)
+- [Version History](#version-history)
 
 ## Installation
 
 Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community
 nodes documentation.
 
-For unknown reasons, the middleware node must manually override the base ExecuteWorkflow node.
+For unknown reasons, the Execute Workflow Extended node must manually override the base ExecuteWorkflow node, or you
+have the base ExecuteWorkflow node somewhere in the flow - it does not have to be connected but active.
 
 ```/n8n/node_modules/n8n-nodes-base/dist/nodes/ExecuteWorkflow```
 
-For convenience, the customization is additionally available as ExecuteWorkflow.
+For overwrite convenience, the customization is additionally available as ExecuteWorkflow.
 
 The CORE code of the Server.js and the WebhookServer.js must be overwritten so that additional headers can also be set
 via OPTIONS.
@@ -34,7 +35,7 @@ replace(`res.header('Access-Control-Allow-Origin', 'http://localhost:8080');`, `
 replace(`res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, sessionid')`, `res.header('Access-Control-Allow-Headers', '*');`)
 ```
 
-## Webhook Extended
+## Webhook extended
 
 Note the installation instructions!
 
@@ -102,7 +103,7 @@ If the user input does not match the schema, the ajv error object is output to t
 
 Validation is performed over the entire schema. ``{allErrors: true}``
 
-## Middleware
+## Execute Workflow extended
 
 Note the installation instructions!
 
@@ -114,9 +115,9 @@ Handling corresponds to the Set-Node.
 
 ### True/False return
 
-In the workflow to be executed, the attribute **_middleware** can be passed.
+In the workflow to be executed, the attribute **__middleware** can be passed.
 According to its value (true/false) the output branch is true/false.
-Attribute **_middleware** is **not** output by the node. Default branch is 'false'.
+The attribute is truncated. If it is not set, the branch is 'false'.
 
 ## Resources
 
