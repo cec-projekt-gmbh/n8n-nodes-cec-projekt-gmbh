@@ -16,6 +16,8 @@ This is a collection of n8n-base-nodes extensions.
 Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community
 nodes documentation.
 
+You need n8n min v0.199.0.
+
 The CORE code of the Server.js and the WebhookServer.js must be overwritten so that additional headers can also be set
 via OPTIONS.
 
