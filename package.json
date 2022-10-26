@@ -1,5 +1,5 @@
 {
-  "name": "n8n-nodes-cec-projekt-gmbh",
+  "name": "@cec-projekt-gmbh/n8n-nodes-cec-projekt-gmbh",
   "version": "1.0.0",
   "description": "Extensions and custom nodes for n8n",
   "keywords": [
@@ -30,7 +30,6 @@
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
-    "credentials": [],
     "nodes": [
       "dist/nodes/WebhookExtended/WebhookExtended.node.js",
       "dist/nodes/ExecuteWorkflow/ExecuteWorkflow.node.js",
