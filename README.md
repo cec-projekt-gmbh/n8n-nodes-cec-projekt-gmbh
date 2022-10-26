@@ -16,13 +16,6 @@ This is a collection of n8n-base-nodes extensions.
 Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community
 nodes documentation.
 
-For unknown reasons, the Execute Workflow Extended node must manually override the base ExecuteWorkflow node, or you
-have the base ExecuteWorkflow node somewhere in the flow - it does not have to be connected but active.
-
-```/n8n/node_modules/n8n-nodes-base/dist/nodes/ExecuteWorkflow```
-
-For overwrite convenience, the customization is additionally available as ExecuteWorkflow.
-
 The CORE code of the Server.js and the WebhookServer.js must be overwritten so that additional headers can also be set
 via OPTIONS.
 
@@ -104,8 +97,6 @@ If the user input does not match the schema, the ajv error object is output to t
 Validation is performed over the entire schema. ``{allErrors: true}``
 
 ## Execute Workflow extended
-
-Note the installation instructions!
 
 The following has been added to the ExecutionWorkflow-node:
 
