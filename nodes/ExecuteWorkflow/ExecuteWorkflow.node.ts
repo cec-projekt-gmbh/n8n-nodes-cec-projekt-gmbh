@@ -25,7 +25,7 @@ export class ExecuteWorkflow implements INodeType {
 		subtitle: '={{"Workflow: " + $parameter["workflowId"]}}',
 		description: 'Execute another workflow',
 		defaults: {
-			name: 'Middleware',
+			name: 'Execute Workflow Extended',
 			color: '#ff6d5a',
 		},
 		inputs: ['main'],

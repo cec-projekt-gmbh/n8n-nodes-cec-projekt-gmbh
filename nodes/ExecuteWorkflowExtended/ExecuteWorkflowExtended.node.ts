@@ -15,17 +15,17 @@ import {
 // @ts-ignore
 import { set } from 'lodash';
 
-export class Middleware implements INodeType {
+export class ExecuteWorkflowExtended implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Middleware',
-		name: 'Middleware',
+		displayName: 'Execute Workflow Extended',
+		name: 'execute-workflow-extended',
 		icon: 'fa:sign-in-alt',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{"Workflow: " + $parameter["workflowId"]}}',
 		description: 'Execute another workflow',
 		defaults: {
-			name: 'Middleware',
+			name: 'Execute Workflow Extended',
 			color: '#ff6d5a',
 		},
 		inputs: ['main'],
