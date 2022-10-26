@@ -502,13 +502,6 @@ export class WebhookExtended implements INodeType {
 						default: 'data',
 						description: 'Name of the property to return the data of instead of the whole JSON',
 					},
-					{
-						displayName: 'Permissions',
-						name: 'permissions',
-						type: 'string',
-						default: '',
-						description: 'A comma-separated list of permissions (strings). <b>They are not evaluated by the node!</b> They are only used for documentation purposes.',
-					},
 				],
 			},
 		],
