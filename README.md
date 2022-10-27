@@ -56,6 +56,10 @@ The following has been added to the Webhook-node:
 - **JSON Schema: query/body**: Validate query/body on corresponding schema.
   [ajv schemas](https://ajv.js.org/json-schema.html#json-data-type)
 
+### Branches
+- Add success/error branch
+- All errors must/can be handled manually
+
 ### Usage
 
 #### Google Firebase authentication
