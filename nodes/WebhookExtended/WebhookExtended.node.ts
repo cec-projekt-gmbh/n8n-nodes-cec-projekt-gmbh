@@ -33,23 +33,6 @@ import {getAuth} from 'firebase-admin/auth';
 const ajv = new Ajv({allErrors: true});
 addFormats(ajv);
 
-function authorizationError(resp: Response, realm: string, responseCode: number, message?: string) {
-	if (message === undefined) {
-		message = 'Authorization problem!';
-		if (responseCode === 401) {
-			message = 'Authorization is required!';
-		} else if (responseCode === 403) {
-			message = 'Authorization data is wrong!';
-		}
-	}
-
-	resp.writeHead(responseCode, {'WWW-Authenticate': `Basic realm="${realm}"`});
-	resp.end(message);
-	return {
-		noWebhookResponse: true,
-	};
-}
-
 // tslint:disable-next-line:no-any
 function responseError(status: number, message: any) {
 	const returnDataTrue: INodeExecutionData[] = [];
@@ -59,35 +42,61 @@ function responseError(status: number, message: any) {
 	return {workflowData: [returnDataTrue, returnDataFalse]};
 }
 
-function ajvValidateInput(resp: Response, realm: string, schema: object, data: object) {
+function ajvValidateInput(schema: object, data: object) {
+	let validate, valid;
 	try {
-		const validate = ajv.compile(schema);
-		const valid = validate(data);
-
-		if (!valid) {
-			return {
-				validationResult: false,
-				errors: validate.errors,
-			};
-		}
-
-		return {
-			validationResult: true,
-			data,
-		};
+		validate = ajv.compile(schema);
 	} catch (e) {
 		console.log(e.message);
-		resp.writeHead(500, {'WWW-Authenticate': `Basic realm="${realm}"`});
 		const email = process.env.EMAIL_ADMINISTRATION;
 		let message = `A problem with the schema definition has occurred. Please inform the website administration.`;
 		if (!!email) {
 			message += ` E-Mail: ${email}`;
 		}
-		resp.end(message);
+
 		return {
-			noWebhookResponse: true,
+			status: 500,
+			data: message,
 		};
 	}
+	valid = validate(data);
+
+	if (!valid) {
+		return {
+			status: 400,
+			data: validate.errors,
+		};
+	}
+
+	return {
+		status: 200,
+		data,
+	};
+
+}
+
+function validateSchema(schema: string, type: string, data: object) {
+	try {
+		// @ts-ignore
+		schema = JSON.parse(schema);
+	} catch (error) {
+		return {
+			status: 500,
+			data: `Error while parsing the ${type} schema. Error message: ${error.message}`,
+		};
+	}
+
+	// @ts-ignore
+	const result = ajvValidateInput(schema, data);
+
+	if (result.status !== 200) {
+		return {
+			status: result.status,
+			data: result.data,
+		};
+	}
+
+	return true;
 }
 
 export class WebhookExtended implements INodeType {
@@ -513,8 +522,6 @@ export class WebhookExtended implements INodeType {
 		const authentication = this.getNodeParameter('authentication') as string;
 		const options = this.getNodeParameter('options', {}) as IDataObject;
 		const req = this.getRequestObject();
-		const resp = this.getResponseObject();
-		const realm = 'Webhook';
 		const headers = this.getHeaderData();
 		const params = this.getParamsData();
 		const query = this.getQueryData();
@@ -616,27 +623,24 @@ export class WebhookExtended implements INodeType {
 			}
 		}
 
-		const schemas = [];
-		if (options.jsonSchemaQuery) schemas.push({schema: options.jsonSchemaQuery, data: query});
-		if (options.jsonSchemaBody) schemas.push({schema: options.jsonSchemaBody, data: body});
-		if (schemas.length > 0) {
-			for (let i = 0; i < schemas.length; i++) {
-				// @ts-ignore
-				const schema = JSON.parse(schemas[i].schema);
-				const result = ajvValidateInput(resp, realm, schema, schemas[i].data);
-
-				if (!!result?.noWebhookResponse) return result;
-
-				if (!result.validationResult) {
-					const message = {
-						status: 400,
-						message: result.errors,
-					};
-					// @ts-ignore
-					return responseError(400, result.errors);
-				}
+		if (options.jsonSchemaQuery) {
+			//@ts-ignore
+			const vResult = validateSchema(options.jsonSchemaQuery, 'query', query);
+			if (vResult !== true) {
+				//@ts-ignore
+				return responseError(vResult.status, vResult.data);
 			}
 		}
+
+		if (options.jsonSchemaBody) {
+			//@ts-ignore
+			const vResult = validateSchema(options.jsonSchemaBody, 'body', body);
+			if (vResult !== true) {
+				//@ts-ignore
+				return responseError(vResult.status, vResult.data);
+			}
+		}
+
 
 		// @ts-ignore
 		const mimeType = headers['content-type'] || 'application/json';
