@@ -50,12 +50,13 @@ function authorizationError(resp: Response, realm: string, responseCode: number,
 	};
 }
 
-function validationError(resp: Response, realm: string, message: object) {
-	resp.writeHead(403, {'WWW-Authenticate': `Basic realm="${realm}"`, 'Content-Type': 'application/json'});
-	resp.end(JSON.stringify(message));
-	return {
-		noWebhookResponse: true,
-	};
+// tslint:disable-next-line:no-any
+function responseError(status: number, message: any) {
+	const returnDataTrue: INodeExecutionData[] = [];
+	const returnDataFalse: INodeExecutionData[] = [];
+	returnDataFalse.push({json: {status, data: message}});
+	// @ts-ignore
+	return {workflowData: [returnDataTrue, returnDataFalse]};
 }
 
 function ajvValidateInput(resp: Response, realm: string, schema: object, data: object) {
@@ -115,7 +116,8 @@ export class WebhookExtended implements INodeType {
 		},
 		// eslint-disable-next-line n8n-nodes-base/node-class-description-inputs-wrong-regular-node
 		inputs: [],
-		outputs: ['main'],
+		outputs: ['main', 'main'],
+		outputNames: ['success', 'error'],
 		credentials: [
 			{
 				name: 'httpBasicAuth',
@@ -522,7 +524,8 @@ export class WebhookExtended implements INodeType {
 
 		const ignoreBots = options.ignoreBots as boolean;
 		if (ignoreBots && isbot((headers as IDataObject)['user-agent'] as string)) {
-			return authorizationError(resp, realm, 403);
+			// @ts-ignore
+			return responseError(403, 'Bot requests are not permitted');
 		}
 
 		if (authentication === 'basicAuth') {
@@ -531,19 +534,22 @@ export class WebhookExtended implements INodeType {
 			try {
 				httpBasicAuth = await this.getCredentials('httpBasicAuth');
 			} catch (error) {
-				// Do nothing
+				// @ts-ignore
+				return responseError(500, error.message);
 			}
 
 			if (httpBasicAuth === undefined || !httpBasicAuth.user || !httpBasicAuth.password) {
 				// Data is not defined on node so can not authenticate
-				return authorizationError(resp, realm, 500, 'No authentication data defined on node!');
+				// @ts-ignore
+				return responseError(500, 'No authentication data defined on node!');
 			}
 
 			const basicAuthData = basicAuth(req);
 
 			if (basicAuthData === undefined) {
 				// Authorization data is missing
-				return authorizationError(resp, realm, 401);
+				// @ts-ignore
+				return responseError(401, 'Authorization data is missing');
 			}
 
 			if (
@@ -551,7 +557,8 @@ export class WebhookExtended implements INodeType {
 				basicAuthData.pass !== httpBasicAuth!.password
 			) {
 				// Provided authentication data is wrong
-				return authorizationError(resp, realm, 403);
+				// @ts-ignore
+				return responseError(403, 'Provided authentication data is wrong');
 			}
 		} else if (authentication === 'headerAuth') {
 			// Special header with value is needed to call webhook
@@ -559,12 +566,14 @@ export class WebhookExtended implements INodeType {
 			try {
 				httpHeaderAuth = await this.getCredentials('httpHeaderAuth');
 			} catch (error) {
-				// Do nothing
+				// @ts-ignore
+				return responseError(500, error.message);
 			}
 
 			if (httpHeaderAuth === undefined || !httpHeaderAuth.name || !httpHeaderAuth.value) {
 				// Data is not defined on node so can not authenticate
-				return authorizationError(resp, realm, 500, 'No authentication data defined on node!');
+				// @ts-ignore
+				return responseError(500, 'No authentication data defined on node!');
 			}
 			const headerName = (httpHeaderAuth.name as string).toLowerCase();
 			const headerValue = httpHeaderAuth.value as string;
@@ -574,13 +583,15 @@ export class WebhookExtended implements INodeType {
 				(headers as IDataObject)[headerName] !== headerValue
 			) {
 				// Provided authentication data is wrong
-				return authorizationError(resp, realm, 403);
+				// @ts-ignore
+				return responseError(403, 'Provided authentication data is wrong');
 			}
 		} else if (authentication === 'googleFirebaseAuth') {
 			// @ts-ignore
 			const auth = headers['authorization'];
 			if (!auth) {
-				return authorizationError(resp, realm, 401, `Header 'Authorization' is required!`);
+				// @ts-ignore
+				return responseError(401, `Header 'Authorization' is required!`);
 			}
 
 			// Init Firebase once
@@ -589,7 +600,8 @@ export class WebhookExtended implements INodeType {
 				initializeApp(firebaseConfig);
 			} catch (e) {
 				if (e.code !== 'app/duplicate-app') {
-					return authorizationError(resp, realm, 500, e.message);
+					// @ts-ignore
+					return responseError(500, e.message);
 				}
 			}
 
@@ -599,7 +611,8 @@ export class WebhookExtended implements INodeType {
 				const idToken = auth.replace('Bearer ', '');
 				user = await getAuth().verifyIdToken(idToken);
 			} catch (e) {
-				return authorizationError(resp, realm, 500, e.message);
+				// @ts-ignore
+				return responseError(500, e.message);
 			}
 		}
 
@@ -619,7 +632,8 @@ export class WebhookExtended implements INodeType {
 						status: 400,
 						message: result.errors,
 					};
-					return validationError(resp, realm, message);
+					// @ts-ignore
+					return responseError(400, result.errors);
 				}
 			}
 		}
@@ -752,7 +766,7 @@ export class WebhookExtended implements INodeType {
 
 		return {
 			webhookResponse,
-			workflowData: [[response]],
+			workflowData: [[response], [{json: {}}]],
 		};
 	}
 }
