@@ -766,7 +766,7 @@ export class WebhookExtended implements INodeType {
 
 		return {
 			webhookResponse,
-			workflowData: [[response], [{json: {}}]],
+			workflowData: [[response], []],
 		};
 	}
 }
