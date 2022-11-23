@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3.0
+
+Release date: 2022-11-23
+
+[Webhook Extended]
+The node tries to convert the single incoming query values into a JSON object.
+This allows a more accurate query validation.
+Query values that cannot be converted remain strings.
+
+The default path was changed to '/v1/application/path'
+
 ## v1.2.1
 
 Release date: 2022-10-27

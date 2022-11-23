@@ -14,8 +14,6 @@ import {
 // @ts-ignore
 import basicAuth from 'basic-auth';
 
-import {Response} from 'express';
-
 import fs from 'fs';
 
 import formidable from 'formidable';
@@ -238,8 +236,8 @@ export class WebhookExtended implements INodeType {
 				displayName: 'Path',
 				name: 'path',
 				type: 'string',
-				default: '/application/v1/path',
-				placeholder: '/application/v1/path',
+				default: '/v1/application/path',
+				placeholder: '/v1/application/path',
 				required: true,
 				description: 'The path to listen to',
 			},
@@ -524,7 +522,18 @@ export class WebhookExtended implements INodeType {
 		const req = this.getRequestObject();
 		const headers = this.getHeaderData();
 		const params = this.getParamsData();
-		const query = this.getQueryData();
+		let query = this.getQueryData();
+		// @ts-ignore
+		query = Object.keys(query).reduce((prev, key) => {
+			try {
+				// @ts-ignore
+				prev[key] = JSON.parse(query[key]);
+			} catch (e) {
+				// @ts-ignore
+				prev[key] = query[key];
+			}
+			return prev;
+		}, {});
 		const body = this.getBodyData();
 		let user = {}; // Für Google Auth;
 		const httpMethod = this.getNodeParameter('httpMethod');
