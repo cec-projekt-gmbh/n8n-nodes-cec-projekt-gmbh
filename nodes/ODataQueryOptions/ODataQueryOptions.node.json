@@ -1,0 +1,17 @@
+{
+	"node": "n8n-nodes-cec-projekt-gmbh.oDataQueryOptions",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Development", "Utility"],
+	"resources": {
+		"primaryDocumentation": [
+			{
+				"url": "https://apps.cec-projekt.de/docs/n8n-custom-nodes/n8n-nodes-base.oDataQueryOptions"
+			}
+		]
+	},
+	"alias": ["OData", "$select", "$filter"],
+	"subcategories": {
+		"Core Nodes": ["REST-API", "OData"]
+	}
+}

@@ -32,7 +32,8 @@
     "n8nNodesApiVersion": 1,
     "nodes": [
       "dist/nodes/WebhookExtended/WebhookExtended.node.js",
-	  "dist/nodes/ExecuteWorkflowExtended/ExecuteWorkflowExtended.node.js"
+      "dist/nodes/ExecuteWorkflowExtended/ExecuteWorkflowExtended.node.js",
+      "dist/nodes/ODataQueryOptions/ODataQueryOptions.node.js"
     ]
   },
   "devDependencies": {
