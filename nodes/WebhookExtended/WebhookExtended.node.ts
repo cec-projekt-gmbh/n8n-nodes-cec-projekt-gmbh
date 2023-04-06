@@ -40,6 +40,19 @@ function responseError(status: number, message: any) {
 	return {workflowData: [returnDataTrue, returnDataFalse]};
 }
 
+// tslint:disable-next-line:no-any
+function responseError_v2(version: number, respond: any, errorObject: any) {
+	const v1 = {status: errorObject.statusCode, data: errorObject.message};
+	const v2 = {...respond.json, error: errorObject};
+	const json = (version === 1) ? v1 : v2;
+
+	return {
+		workflowData: [[], [{
+			json,
+		}]],
+	};
+}
+
 function ajvValidateInput(schema: object, data: object) {
 	let validate, valid;
 	try {
@@ -95,6 +108,20 @@ function validateSchema(schema: string, type: string, data: object) {
 	}
 
 	return true;
+}
+
+// @ts-ignore
+function keysToParsedObject(obj) {
+	return Object.keys(obj).reduce((prev, key) => {
+		try {
+			// @ts-ignore
+			prev[key] = JSON.parse(obj[key]);
+		} catch (e) {
+			// @ts-ignore
+			prev[key] = obj[key];
+		}
+		return prev;
+	}, {});
 }
 
 export class WebhookExtended implements INodeType {
@@ -240,6 +267,22 @@ export class WebhookExtended implements INodeType {
 				placeholder: '/v1/application/path',
 				required: true,
 				description: 'The path to listen to',
+			},
+			{
+				displayName: 'Respond Version',
+				name: 'respondVersion',
+				type: 'options',
+				options: [
+					{
+						name: 'v1',
+						value: 1,
+					}, {
+						name: 'v2',
+						value: 2,
+					},
+				],
+				default: 1,
+				description: 'v2 erweitert den false-Branch mit den gleichen Attributen wie den true-Branch. Es enthält kein \'Respond Object\' mehr, dafür ein error Attribut.',
 			},
 			{
 				displayName: 'Respond',
@@ -517,32 +560,28 @@ export class WebhookExtended implements INodeType {
 	};
 
 	async webhook(this: IWebhookFunctions): Promise<IWebhookResponseData> {
+		const respondVersion = this.getNodeParameter('respondVersion', 1) as number;
+		const startedAt = Date.now();
 		const authentication = this.getNodeParameter('authentication') as string;
 		const options = this.getNodeParameter('options', {}) as IDataObject;
 		const req = this.getRequestObject();
 		const headers = this.getHeaderData();
 		const params = this.getParamsData();
-		let query = this.getQueryData();
-		// @ts-ignore
-		query = Object.keys(query).reduce((prev, key) => {
-			try {
-				// @ts-ignore
-				prev[key] = JSON.parse(query[key]);
-			} catch (e) {
-				// @ts-ignore
-				prev[key] = query[key];
-			}
-			return prev;
-		}, {});
+		const query = keysToParsedObject(this.getQueryData());
 		const body = this.getBodyData();
 		let user = {}; // Für Google Auth;
 		const httpMethod = this.getNodeParameter('httpMethod');
-
-		const ignoreBots = options.ignoreBots as boolean;
-		if (ignoreBots && isbot((headers as IDataObject)['user-agent'] as string)) {
-			// @ts-ignore
-			return responseError(403, 'Bot requests are not permitted');
-		}
+		const response: INodeExecutionData = {
+			json: {
+				startedAt,
+				httpMethod,
+				headers,
+				user,
+				params,
+				query,
+				body,
+			},
+		};
 
 		if (authentication === 'basicAuth') {
 			// Basic authorization is needed to call webhook
@@ -550,22 +589,31 @@ export class WebhookExtended implements INodeType {
 			try {
 				httpBasicAuth = await this.getCredentials('httpBasicAuth');
 			} catch (error) {
-				// @ts-ignore
-				return responseError(500, error.message);
+				return responseError_v2(respondVersion, response, {
+					statusCode: 500,
+					message: error.message,
+					code: 'E_AUTH_BASIC',
+				});
 			}
 
 			if (httpBasicAuth === undefined || !httpBasicAuth.user || !httpBasicAuth.password) {
 				// Data is not defined on node so can not authenticate
-				// @ts-ignore
-				return responseError(500, 'No authentication data defined on node!');
+				return responseError_v2(respondVersion, response, {
+					statusCode: 500,
+					message: 'No authentication data defined on node',
+					code: 'E_AUTH_BASIC_NO_NODE_DATA',
+				});
 			}
 
 			const basicAuthData = basicAuth(req);
 
 			if (basicAuthData === undefined) {
 				// Authorization data is missing
-				// @ts-ignore
-				return responseError(401, 'Authorization data is missing');
+				return responseError_v2(respondVersion, response, {
+					statusCode: 401,
+					message: 'Authorization data is missing',
+					code: 'E_AUTH_BASIC_NO_DATA',
+				});
 			}
 
 			if (
@@ -573,8 +621,11 @@ export class WebhookExtended implements INodeType {
 				basicAuthData.pass !== httpBasicAuth!.password
 			) {
 				// Provided authentication data is wrong
-				// @ts-ignore
-				return responseError(403, 'Provided authentication data is wrong');
+				return responseError_v2(respondVersion, response, {
+					statusCode: 403,
+					message: 'Provided authentication data is wrong',
+					code: 'E_AUTH_BASIC_WRONG_DATA',
+				});
 			}
 		} else if (authentication === 'headerAuth') {
 			// Special header with value is needed to call webhook
@@ -582,14 +633,20 @@ export class WebhookExtended implements INodeType {
 			try {
 				httpHeaderAuth = await this.getCredentials('httpHeaderAuth');
 			} catch (error) {
-				// @ts-ignore
-				return responseError(500, error.message);
+				return responseError_v2(respondVersion, response, {
+					statusCode: 500,
+					message: error.message,
+					code: 'E_AUTH_HEADER',
+				});
 			}
 
 			if (httpHeaderAuth === undefined || !httpHeaderAuth.name || !httpHeaderAuth.value) {
 				// Data is not defined on node so can not authenticate
-				// @ts-ignore
-				return responseError(500, 'No authentication data defined on node!');
+				return responseError_v2(respondVersion, response, {
+					statusCode: 500,
+					message: 'No authentication data defined on node',
+					code: 'E_AUTH_HEADER_NO_NODE_DATA',
+				});
 			}
 			const headerName = (httpHeaderAuth.name as string).toLowerCase();
 			const headerValue = httpHeaderAuth.value as string;
@@ -599,15 +656,21 @@ export class WebhookExtended implements INodeType {
 				(headers as IDataObject)[headerName] !== headerValue
 			) {
 				// Provided authentication data is wrong
-				// @ts-ignore
-				return responseError(403, 'Provided authentication data is wrong');
+				return responseError_v2(respondVersion, response, {
+					statusCode: 403,
+					message: 'Provided authentication data is wrong',
+					code: 'E_AUTH_HEADER_WRONG_DATA',
+				});
 			}
 		} else if (authentication === 'googleFirebaseAuth') {
 			// @ts-ignore
 			const auth = headers['authorization'];
 			if (!auth) {
-				// @ts-ignore
-				return responseError(401, `Header 'Authorization' is required!`);
+				return responseError_v2(respondVersion, response, {
+					statusCode: 401,
+					message: `Header 'Authorization' with 'Bearer Token' is required`,
+					code: 'E_AUTH_HEADER_MISSING',
+				});
 			}
 
 			// Init Firebase once
@@ -616,8 +679,11 @@ export class WebhookExtended implements INodeType {
 				initializeApp(firebaseConfig);
 			} catch (e) {
 				if (e.code !== 'app/duplicate-app') {
-					// @ts-ignore
-					return responseError(500, e.message);
+					return responseError_v2(respondVersion, response, {
+						statusCode: 500,
+						message: e.message,
+						code: 'E_FIREBASE_INIT',
+					});
 				}
 			}
 
@@ -627,17 +693,32 @@ export class WebhookExtended implements INodeType {
 				const idToken = auth.replace('Bearer ', '');
 				user = await getAuth().verifyIdToken(idToken);
 			} catch (e) {
-				// @ts-ignore
-				return responseError(500, e.message);
+				return responseError_v2(respondVersion, response, {
+					statusCode: 500,
+					message: e.message,
+					code: 'E_AUTH_FIREBASE_VERIFY',
+				});
 			}
+		}
+
+		const ignoreBots = options.ignoreBots as boolean;
+		if (ignoreBots && isbot((headers as IDataObject)['user-agent'] as string)) {
+			return responseError_v2(respondVersion, response, {
+				statusCode: 403,
+				message: 'Bot requests are not permitted',
+				code: 'E_BOT_REQUESTS_NOT_PERMITTED',
+			});
 		}
 
 		if (options.jsonSchemaQuery) {
 			//@ts-ignore
 			const vResult = validateSchema(options.jsonSchemaQuery, 'query', query);
 			if (vResult !== true) {
-				//@ts-ignore
-				return responseError(vResult.status, vResult.data);
+				return responseError_v2(respondVersion, response, {
+					statusCode: vResult.status,
+					message: vResult.data,
+					code: 'E_VALIDATION_QUERY',
+				});
 			}
 		}
 
@@ -645,11 +726,13 @@ export class WebhookExtended implements INodeType {
 			//@ts-ignore
 			const vResult = validateSchema(options.jsonSchemaBody, 'body', body);
 			if (vResult !== true) {
-				//@ts-ignore
-				return responseError(vResult.status, vResult.data);
+				return responseError_v2(respondVersion, response, {
+					statusCode: vResult.status,
+					message: vResult.data,
+					code: 'E_VALIDATION_BODY',
+				});
 			}
 		}
-
 
 		// @ts-ignore
 		const mimeType = headers['content-type'] || 'application/json';
@@ -662,11 +745,13 @@ export class WebhookExtended implements INodeType {
 					const returnItem: INodeExecutionData = {
 						binary: {},
 						json: {
+							startedAt,
+							httpMethod,
 							headers,
+							user,
 							params,
 							query,
 							body: data,
-							user,
 						},
 					};
 
@@ -727,12 +812,13 @@ export class WebhookExtended implements INodeType {
 					const returnItem: INodeExecutionData = {
 						binary: {},
 						json: {
+							startedAt,
 							httpMethod,
 							headers,
+							user,
 							params,
 							query,
 							body,
-							user,
 						},
 					};
 
@@ -750,17 +836,6 @@ export class WebhookExtended implements INodeType {
 				});
 			});
 		}
-
-		const response: INodeExecutionData = {
-			json: {
-				httpMethod,
-				headers,
-				params,
-				query,
-				body,
-				user,
-			},
-		};
 
 		if (options.rawBody) {
 			response.binary = {

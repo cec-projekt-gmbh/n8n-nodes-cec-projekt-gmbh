@@ -1,12 +1,12 @@
 {
 	"node": "n8n-nodes-cec-projekt-gmbh.webhookExtended",
-	"nodeVersion": "1.0",
+	"nodeVersion": "2.0",
 	"codexVersion": "1.0",
 	"categories": ["Development", "Core Nodes"],
 	"resources": {
 		"primaryDocumentation": [
 			{
-				"url": "https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/"
+				"url": "https://github.com/cec-projekt-gmbh/n8n-nodes-cec-projekt-gmbh/blob/master/nodes/ExecuteWorkflowExtended/documentation.md"
 			}
 		]
 	},
